@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kruskal Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        canvas {
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <button onclick="runKruskal()">Run Kruskal</button>
+    <script>
+        class Arista {
+            constructor(origen, destino, peso) {
+                this.origen = origen;
+                this.destino = destino;
+                this.peso = peso;
+            }
+        }
+
+        class Grafo {
+            constructor(numVertices) {
+                this.numVertices = numVertices;
+                this.Posx = [];
+                this.Posy = [];
+                this.Cam = [];
+                this.aristas = [];
+                this.initRandomPositions();
+            }
+
+            initRandomPositions() {
+                for (let i = 0; i < this.numVertices; i++) {
+                    this.Posx[i] = Math.random() * 500;
+                    this.Posy[i] = Math.random() * 300;
+                }
+            }
+
+            agregarArista(origen, destino, peso) {
+                this.aristas.push(new Arista(origen, destino, peso));
+            }
+
+            compararAristas(a, b) {
+                return a.peso - b.peso;
+            }
+
+            kruskal() {
+                const padres = new Array(this.numVertices).fill().map((_, i) => i);
+                this.aristas.sort(this.compararAristas);
+
+                this.Cam = [];
+                for (let i = 0; i < this.numVertices; i++) {
+                    padres[i] = i;
+                }
+
+                const arbolExpansion = [];
+                for (const arista of this.aristas) {
+                    const origen = arista.origen;
+                    const destino = arista.destino;
+                    const raizOrigen = this.encontrarRaiz(padres, origen);
+                    const raizDestino = this.encontrarRaiz(padres, destino);
+                    if (raizOrigen !== raizDestino) {
+                        arbolExpansion.push({ origen, destino });
+                        this.unirConjuntos(padres, raizOrigen, raizDestino);
+                    }
+                }
+                for (const arista of arbolExpansion) {
+                    this.Cam.push(arista);
+                }
+            }
+
+            encontrarRaiz(padres, vertice) {
+                while (padres[vertice] !== vertice) {
+                    vertice = padres[vertice];
+                }
+                return vertice;
+            }
+
+            unirConjuntos(padres, vertice1, vertice2) {
+                const raiz1 = this.encontrarRaiz(padres, vertice1);
+                const raiz2 = this.encontrarRaiz(padres, vertice2);
+                padres[raiz1] = raiz2;
+            }
+        }
+
+        const numVertices = 8;
+        const grafo = new Grafo(numVertices);
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        let D = -1;
+        let draggingNode = false;
+        let nodeIndex = -1;
+
+        function drawGraph() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            grafo.aristas.forEach(arista => {
+                const origenX = grafo.Posx[arista.origen];
+                const origenY = grafo.Posy[arista.origen];
+                const destinoX = grafo.Posx[arista.destino];
+                const destinoY = grafo.Posy[arista.destino];
+
+                ctx.beginPath();
+                if (grafo.Cam.some(camino => camino.origen === arista.origen && camino.destino === arista.destino)) {
+                    ctx.strokeStyle = "red";
+                    ctx.lineWidth = 2;
+                } else {
+                    ctx.strokeStyle = "black";
+                    ctx.lineWidth = 1;
+                }
+                ctx.moveTo(origenX, origenY);
+                ctx.lineTo(destinoX, destinoY);
+                ctx.stroke();
+            });
+
+            grafo.Posx.forEach((x, i) => {
+                ctx.beginPath();
+                ctx.arc(x, grafo.Posy[i], 15, 0, 2 * Math.PI);
+                ctx.fillStyle = "white";
+                ctx.fill();
+                ctx.strokeStyle = "black";
+                ctx.stroke();
+                ctx.fillStyle = "black";
+                ctx.fillText(i.toString(), x - 5, grafo.Posy[i] - 8);
+            });
+        }
+
+        function runKruskal() {
+            const NVAL = parseInt(prompt("Introduzca el valor del paso"));
+            if (NVAL > 0) {
+                grafo.kruskal(NVAL);
+                drawGraph();
+            }
+        }
+
+        function getCursorPosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            return { x, y };
+        }
+
+        function onMouseDown(event) {
+            if (D === -1) {
+                const { x, y } = getCursorPosition(event);
+                for (let i = 0; i < grafo.numVertices; i++) {
+                    if (Math.abs(x - grafo.Posx[i]) < 15 && Math.abs(y - grafo.Posy[i]) < 15) {
+                        D = i;
+                        draggingNode = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        function onMouseMove(event) {
+            if (D !== -1 && draggingNode) {
+                const { x, y } = getCursorPosition(event);
+                grafo.Posx[D] = x;
+                grafo.Posy[D] = y;
+                drawGraph();
+            }
+        }
+
+        function onMouseUp(event) {
+            if (D !== -1) {
+                draggingNode = false;
+                D = -1;
+            }
+        }
+
+        canvas.addEventListener("mousedown", onMouseDown);
+        canvas.addEventListener("mousemove", onMouseMove);
+        canvas.addEventListener("mouseup", onMouseUp);
+
+        grafo.agregarArista(0, 1, 16);
+        grafo.agregarArista(0, 2, 10);
+        grafo.agregarArista(0, 3, 5);
+        grafo.agregarArista(1, 2, 2);
+        grafo.agregarArista(1, 5, 4);
+        grafo.agregarArista(1, 6, 6);
+        grafo.agregarArista(2, 3, 24);
+        grafo.agregarArista(2, 4, 10);
+        grafo.agregarArista(2, 5, 12);
+        grafo.agregarArista(3, 4, 15);
+        grafo.agregarArista(4, 5, 3);
+        grafo.agregarArista(4, 7, 5);
+        grafo.agregarArista(5, 6, 8);
+        grafo.agregarArista(5, 7, 16);
+        grafo.agregarArista(6, 7, 7);
+
+        drawGraph();
+    </script>
+</body>
+</html>
